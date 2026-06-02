@@ -225,6 +225,31 @@ def plot_graphical_solution(
             marker="*",
             label=f"Óptimo: Z = {optimal_value:.2f}"
         )
+    
+    if optimal_point is not None and abs(objective[1]) > 1e-9:
+        # Despejamos x2: x2 = (Z_opt - c1*x1) / c2
+        y_iso = (optimal_value - objective[0] * x) / objective[1]
+
+        ax.plot(
+            x,
+            y_iso,
+            color="red",
+            linestyle="--",
+            linewidth=2,
+            label=f"Isobeneficio: Z = {optimal_value:.2f}"
+        )
+
+    elif optimal_point is not None and abs(objective[1]) <= 1e-9:
+        # Si c2 = 0, la recta es vertical: x1 = Z_opt / c1
+        if abs(objective[0]) > 1e-9:
+            x_iso = optimal_value / objective[0]
+            ax.axvline(
+                x=x_iso,
+                color="red",
+                linestyle="--",
+                linewidth=2,
+                label=f"Isobeneficio: Z = {optimal_value:.2f}"
+            )
 
     ax.set_xlim(0, max_value)
     ax.set_ylim(0, max_value)
