@@ -48,7 +48,7 @@ def build_tableau_dataframe(tableau, basic_variables, variable_names):
     nombres de columna dinámicos. Usa variable_names para soportar
     holguras (S), excesos (E) y artificiales (A), no solo X/S.
     """
-    column_names = list(variable_names) + ["RHS"]
+    column_names = list(variable_names) + ["Lado derecho"]
     tableau_df = pd.DataFrame(tableau, columns=column_names)
     tableau_df.index = list(basic_variables) + ["Z"]
     return tableau_df.round(4)
@@ -167,7 +167,7 @@ def show_simplex_iterations(result, problem_data):
                 ratio_value = "-" if np.isinf(ratio) else round(ratio, 4)
                 ratio_data.append({
                     "Fila": basic_before[i],
-                    "Razón RHS / columna pivote": ratio_value,
+                    "Razón LD / columna pivote": ratio_value,
                 })
 
             st.write("##### Prueba de razón mínima")
@@ -222,7 +222,7 @@ def show_simplex_iterations(result, problem_data):
     )
     st.info(
         "En el tablero final, las filas indican las variables básicas y la "
-        "columna RHS su valor. La última fila corresponde a la función objetivo."
+        "columna Lado derecho su valor. La última fila corresponde a la función objetivo."
     )
 
 

@@ -177,7 +177,7 @@ def show_sensitivity_analysis(result, problem_data):
         {
             "Variable básica": data["basic_variables"][i],
             "Valor": round(data["xB"][i], 4),
-            "Condición": "Debe permanecer ≥ 0",
+            "Condición": "Debe permanecer ≥ 0 para mantener la factibilidad",
         }
         for i in range(num_constraints)
     ])

@@ -236,7 +236,7 @@ def plot_graphical_solution(
             color="red",
             linestyle="--",
             linewidth=2,
-            label=f"Isobeneficio: Z = {optimal_value:.2f}"
+            label=f"Isoutilidad: Z = {optimal_value:.2f}"
         )
 
     elif optimal_point is not None and abs(objective[1]) <= 1e-9:
@@ -248,7 +248,7 @@ def plot_graphical_solution(
                 color="red",
                 linestyle="--",
                 linewidth=2,
-                label=f"Isobeneficio: Z = {optimal_value:.2f}"
+                label=f"Isoutilidad: Z = {optimal_value:.2f}"
             )
 
     ax.set_xlim(0, max_value)
