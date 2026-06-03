@@ -9,6 +9,8 @@ import numpy as np
 
 def compute_sensitivity(result, problem_data):
 
+    is_min = problem_data["type"] == "Minimizar"
+
     constraints = problem_data["constraints"]
     num_constraints = len(constraints)
 
@@ -46,38 +48,63 @@ def compute_sensitivity(result, problem_data):
     reduced_costs = (Cb @ B_inv @ A_full) - c_full
 
     # ── Rangos de cj ─────────────────────────────────────────
+    #
+    # Convención interna de reduced_costs: cB·B⁻¹·A − c
+    #   Maximización: rc ≥ 0 en óptimo para no básicas.
+    #   Minimización: rc ≤ 0 en óptimo para no básicas (signo opuesto).
+    #
+    # Al cambiar cj en Δ (para variable básica j en fila k):
+    #   rc_p_nuevo = rc_p + Δ · (B⁻¹·ap)[k]
+    #
+    # Para maximización: rc_p_nuevo ≥ 0  → condiciones sobre Δ estándar.
+    # Para minimización: rc_p_nuevo ≤ 0  → condiciones sobre Δ invertidas
+    #                    (coef_k > 0 acota por arriba en vez de por abajo).
     cj_ranges = []
 
     for j in range(num_variables):
         cj = objective[j]
         var_name = variable_names[j]
 
+        # boundary = cB·B⁻¹·aj = cj + reduced_costs[j]
+        boundary = cj + reduced_costs[j]
+
         if var_name not in basic_variables:
-            # Variable NO básica:
-            # rc_j >= 0  →  cj <= Cb·B_inv·aj  →  solo cota superior
-            cj_max = cj + reduced_costs[j]
-            cj_ranges.append({
-                "Variable": var_name,
-                "cj actual": round(cj, 4),
-                "Límite inferior": "-∞",
-                "Límite superior": round(cj_max, 4),
-            })
+            if not is_min:
+                # Maximización: cj puede bajar a -∞; cota superior = boundary
+                cj_ranges.append({
+                    "Variable": var_name,
+                    "cj actual": round(cj, 4),
+                    "Límite inferior": "-∞",
+                    "Límite superior": round(boundary, 4),
+                })
+            else:
+                # Minimización: cj puede subir a +∞; cota inferior = boundary
+                cj_ranges.append({
+                    "Variable": var_name,
+                    "cj actual": round(cj, 4),
+                    "Límite inferior": round(boundary, 4),
+                    "Límite superior": "+∞",
+                })
 
         else:
-            # Variable BÁSICA en fila k:
-            # Al cambiar cj en Δ, el costo reducido de cada no básica p cambia:
-            #   rc_p_nuevo = rc_p - Δ * (B_inv · ap)[k]
-            # Para rc_p_nuevo >= 0 calculamos los Δ admisibles.
-            # Usamos todas las no básicas con rc >= 0 (excluimos artificiales
-            # y variables con costos reducidos negativos por la M grande).
             k = basic_variables.index(var_name)
 
-            non_basic_indices = [
-                i for i in range(total_cols)
-                if i not in basic_indices
-                and not variable_names[i].startswith("A")
-                and reduced_costs[i] >= -1e-6
-            ]
+            # Incluir solo no básicas con rc en la dirección correcta de optimidad
+            # (excluimos artificiales y las que tienen rc "del lado malo" por la M).
+            if not is_min:
+                non_basic_indices = [
+                    i for i in range(total_cols)
+                    if i not in basic_indices
+                    and not variable_names[i].startswith("A")
+                    and reduced_costs[i] >= -1e-6   # rc ≥ 0 en max
+                ]
+            else:
+                non_basic_indices = [
+                    i for i in range(total_cols)
+                    if i not in basic_indices
+                    and not variable_names[i].startswith("A")
+                    and reduced_costs[i] <= 1e-6    # rc ≤ 0 en min
+                ]
 
             deltas_pos = []
             deltas_neg = []
@@ -91,10 +118,18 @@ def compute_sensitivity(result, problem_data):
 
                 delta_limit = -rc_p / coef_k
 
-                if coef_k > 0:
-                    deltas_neg.append(delta_limit)   # cota inferior
+                if not is_min:
+                    # Max: rc_p + Δ·coef_k ≥ 0
+                    if coef_k > 0:
+                        deltas_neg.append(delta_limit)   # cota inferior
+                    else:
+                        deltas_pos.append(delta_limit)   # cota superior
                 else:
-                    deltas_pos.append(delta_limit)   # cota superior
+                    # Min: rc_p + Δ·coef_k ≤ 0 → condiciones invertidas
+                    if coef_k > 0:
+                        deltas_pos.append(delta_limit)   # cota superior
+                    else:
+                        deltas_neg.append(delta_limit)   # cota inferior
 
             delta_max = min(deltas_pos) if deltas_pos else np.inf
             delta_min = max(deltas_neg) if deltas_neg else -np.inf
@@ -143,11 +178,16 @@ def compute_sensitivity(result, problem_data):
             "Límite superior": round(bi_max, 4) if not np.isinf(bi_max) else "+∞",
         })
 
+    # Para mostrar al usuario, los costos reducidos se expresan siempre
+    # en la convención estándar: rc_j = cj − cB·B⁻¹·aj.
+    # La variable interna reduced_costs = cB·B⁻¹·A − c = −rc_estándar.
+    display_reduced_costs = -reduced_costs
+
     return {
         "ok": True,
         "shadow_prices": shadow_prices,
         "xB": xB,
-        "reduced_costs": reduced_costs,
+        "reduced_costs": display_reduced_costs,
         "variable_names": variable_names,
         "basic_variables": basic_variables,
         "num_constraints": num_constraints,
